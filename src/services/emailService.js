@@ -74,12 +74,16 @@ const sendBookingConfirmation = async (booking, user, flight) => {
     });
 
     console.log('Message sent: %s', info.messageId);
-    // Preview only available when using Ethereal account
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     
     return info;
   } catch (error) {
     console.error('Error sending email:', error);
+    console.error('Email Config:', {
+      host: process.env.EMAIL_HOST,
+      user: process.env.EMAIL_USER,
+      port: process.env.EMAIL_PORT,
+      secure: process.env.EMAIL_SECURE
+    });
   }
 };
 
