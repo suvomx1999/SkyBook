@@ -4,14 +4,15 @@ const nodemailer = require('nodemailer');
 // In production, you would use SendGrid, Gmail, AWS SES, etc.
 const createTransporter = async () => {
   // Check if we have production credentials
-  if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
+  if (process.env.EMAIL_USER) {
+    const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
     const port = process.env.EMAIL_PORT || 587;
     const isSecure = process.env.EMAIL_SECURE === 'true' || port == 465;
 
-    console.log(`Using Production Email (${process.env.EMAIL_HOST})`);
+    console.log(`Using Production Email (${host})`);
     
     return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
+      host: host,
       port: 587,
       secure: false, // true for 465, false for other ports
       requireTLS: true,
@@ -49,6 +50,8 @@ const sendBookingConfirmation = async (booking, user, flight) => {
     // Verify connection configuration
     await transporter.verify();
     console.log('SMTP Connection Verified');
+
+    console.log('Attempting to send email to:', user.email);
 
     const info = await transporter.sendMail({
       from: `"SkyBook Airlines" <${process.env.EMAIL_USER}>`,
