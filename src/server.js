@@ -12,15 +12,25 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+const getAllowedOrigins = () => {
+  const defaultOrigins = ["http://localhost:5173", "http://localhost:3000", "https://sky-book-eta.vercel.app"];
+  if (process.env.CLIENT_URL) {
+    // Split by comma in case multiple origins are provided
+    const envOrigins = process.env.CLIENT_URL.split(',').map(url => url.trim().replace(/\/$/, ""));
+    return [...envOrigins, ...defaultOrigins];
+  }
+  return defaultOrigins;
+};
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL] : ["http://localhost:5173", "http://localhost:3000"],
+    origin: getAllowedOrigins(),
     methods: ["GET", "POST"]
   }
 });
 
 app.use(cors({
-  origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL] : ["http://localhost:5173", "http://localhost:3000"],
+  origin: getAllowedOrigins(),
   credentials: true
 }));
 app.use(express.json());

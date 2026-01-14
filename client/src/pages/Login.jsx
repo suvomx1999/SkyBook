@@ -18,7 +18,8 @@ const Login = () => {
       navigate('/');
     } catch (err) {
       console.error("Login Error:", err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      const message = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
+      setError(message);
     }
   };
 
