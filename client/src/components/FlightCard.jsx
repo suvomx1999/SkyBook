@@ -19,8 +19,16 @@ const FlightCard = ({ flight, onDelete }) => {
 
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // Calculate duration (simple mock logic for demo)
-  const duration = "4h 30m"; // In real app, calculate diff between arrival/departure
+  const departure = new Date(flight.departureTime);
+  const arrival = new Date(flight.arrivalTime);
+  const diffMs = Math.max(arrival - departure, 0);
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+  const duration =
+    diffMinutes > 0
+      ? `${hours}h ${minutes}m`
+      : '';
 
   useEffect(() => {
     if (showModal && !user?.isAdmin) {
