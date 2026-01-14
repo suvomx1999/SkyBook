@@ -7,9 +7,13 @@ const {
   getFlightBookings,
   getBookingById,
   getOccupiedSeats,
+  getAllBookings,
+  getDashboardStats,
 } = require('../controllers/bookingController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
+router.get('/stats', protect, admin, getDashboardStats);
+router.get('/all', protect, admin, getAllBookings);
 router.post('/', protect, bookFlight);
 router.put('/:id/cancel', protect, cancelBooking);
 router.get('/my', protect, getMyBookings);

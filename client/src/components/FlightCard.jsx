@@ -43,7 +43,8 @@ const FlightCard = ({ flight, onDelete }) => {
   useEffect(() => {
     let socket;
     if (showModal && !user?.isAdmin) {
-      socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001');
+      const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
+      socket = io(socketUrl);
       socket.emit('join_flight', flight._id);
 
       // Fetch initial locks

@@ -70,6 +70,18 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
+// @desc    Get all users (Admin)
+// @route   GET /api/users
+// @access  Private/Admin
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Generate JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -81,4 +93,5 @@ module.exports = {
   registerUser,
   loginUser,
   getMe,
+  getAllUsers,
 };

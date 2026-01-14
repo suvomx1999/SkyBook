@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
+const User = require('../models/User');
 const redisClient = require('../config/redis');
 const { sendBookingConfirmation } = require('../services/emailService');
 
@@ -203,22 +204,21 @@ const cancelBooking = async (req, res) => {
   }
 };
 
-// @desc    Get my bookings
+// @desc    Get user bookings
 // @route   GET /api/bookings/my
 // @access  Private
 const getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user.id }).populate(
-      'flight',
-      'flightNumber airline source destination departureTime price'
-    );
-
+    const bookings = await Booking.find({ user: req.user.id }).populate('flight');
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// @desc    Get bookings for a specific flight
+// @route   GET /api/bookings/flight/:flightId
+// @access  Private/Admin
 const getFlightBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ flight: req.params.flightId }).populate('user', 'name email');
@@ -233,7 +233,7 @@ const getFlightBookings = async (req, res) => {
 // @access  Private
 const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id).populate('flight').populate('user', 'name email');
+    const booking = await Booking.findById(req.params.id).populate('flight');
 
     if (!booking) {
       res.status(404).json({ message: 'Booking not found' });
@@ -241,12 +241,53 @@ const getBookingById = async (req, res) => {
     }
 
     // Check ownership or admin
-    if (booking.user._id.toString() !== req.user.id && !req.user.isAdmin) {
+    if (booking.user.toString() !== req.user.id && !req.user.isAdmin) {
       res.status(401).json({ message: 'Not authorized' });
       return;
     }
 
     res.status(200).json(booking);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get all bookings (Admin)
+// @route   GET /api/bookings/all
+// @access  Private/Admin
+const getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate('user', 'name email')
+      .populate('flight', 'flightNumber airline source destination departureTime')
+      .sort({ createdAt: -1 });
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get dashboard stats (Admin)
+// @route   GET /api/bookings/stats
+// @access  Private/Admin
+const getDashboardStats = async (req, res) => {
+  try {
+    const totalBookings = await Booking.countDocuments();
+    const totalFlights = await Flight.countDocuments();
+    const totalUsers = await User.countDocuments();
+
+    const revenueResult = await Booking.aggregate([
+      { $match: { status: 'booked' } },
+      { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+    ]);
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+
+    res.status(200).json({
+      totalBookings,
+      totalFlights,
+      totalUsers,
+      totalRevenue
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -259,4 +300,6 @@ module.exports = {
   getFlightBookings,
   getBookingById,
   getOccupiedSeats,
+  getAllBookings,
+  getDashboardStats,
 };
