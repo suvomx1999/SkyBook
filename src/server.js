@@ -59,9 +59,25 @@ app.use('/api/users', require('./routes/authRoutes'));
 app.use('/api/flights', require('./routes/flightRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 
 app.get('/', (req, res) => {
   res.send('API is running...');
+});
+
+app.get('/api/health/redis', async (req, res) => {
+  const redisClient = require('./config/redis');
+  try {
+    if (redisClient.isOpen) {
+      await redisClient.set('health_check', 'ok', { EX: 5 });
+      const value = await redisClient.get('health_check');
+      res.status(200).json({ status: 'Connected', test_value: value });
+    } else {
+      res.status(503).json({ status: 'Disconnected', message: 'Redis client is not open' });
+    }
+  } catch (error) {
+    res.status(500).json({ status: 'Error', message: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 5000;

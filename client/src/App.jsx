@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import ChatAssistant from './components/ChatAssistant';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/book/:flightId" element={<BookingDetails />} />
             <Route path="/invoice/:bookingId" element={<Invoice />} />
           </Routes>
+          <ChatAssistant />
         </div>
       </Router>
     </AuthProvider>
