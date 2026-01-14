@@ -44,7 +44,21 @@ const FlightCard = ({ flight, onDelete }) => {
     let socket;
     if (showModal && !user?.isAdmin) {
       const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
-      socket = io(socketUrl);
+      console.log('Connecting to socket at:', socketUrl);
+      
+      socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        withCredentials: true
+      });
+      
+      socket.on('connect', () => {
+        console.log('Socket connected:', socket.id);
+      });
+
+      socket.on('connect_error', (err) => {
+        console.error('Socket connection error:', err);
+      });
+
       socket.emit('join_flight', flight._id);
 
       // Fetch initial locks
