@@ -46,7 +46,7 @@ const sendBookingConfirmation = async (booking, user, flight) => {
     const transporter = await createTransporter();
 
     const info = await transporter.sendMail({
-      from: '"SkyBook Airlines" <bookings@skybook.com>',
+      from: `"SkyBook Airlines" <${process.env.EMAIL_USER}>`,
       to: user.email, // In production this goes to the real user
       subject: `Booking Confirmation - ${flight.flightNumber}`,
       html: `
