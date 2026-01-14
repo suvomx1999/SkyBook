@@ -11,7 +11,10 @@ const createTransporter = async () => {
     console.log(`Using Production Email (${process.env.EMAIL_HOST})`);
     
     return nodemailer.createTransport({
-      service: 'gmail', // Use built-in gmail service
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
