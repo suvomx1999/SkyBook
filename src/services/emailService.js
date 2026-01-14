@@ -45,6 +45,10 @@ const sendBookingConfirmation = async (booking, user, flight) => {
   try {
     const transporter = await createTransporter();
 
+    // Verify connection configuration
+    await transporter.verify();
+    console.log('SMTP Connection Verified');
+
     const info = await transporter.sendMail({
       from: `"SkyBook Airlines" <${process.env.EMAIL_USER}>`,
       to: user.email, // In production this goes to the real user
