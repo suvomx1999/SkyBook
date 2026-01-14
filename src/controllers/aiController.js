@@ -3,7 +3,35 @@ const Flight = require('../models/Flight');
 const Booking = require('../models/Booking');
 
 const buildSystemPrompt = () => {
-  return 'You are an AI travel assistant inside a flight booking app called SkyBook. You help users find flights and understand their bookings. Keep answers short, clear, and specific to flights and bookings.';
+  return 'You are an AI travel assistant inside a flight booking app called SkyBook. You help users find flights and understand their bookings. Keep answers short, clear, and specific to flights and bookings. Always consider the user message, any recent bookings, and any matching flights when giving your answer. If there is not enough information, ask a short follow-up question instead of guessing.';
+};
+
+const detectIntent = (message) => {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('my bookings') || lower.includes('upcoming flights') || lower.includes('upcoming trips')) {
+    return 'upcoming_bookings';
+  }
+
+  if (
+    lower.includes('cheap flights') ||
+    lower.includes('find flights') ||
+    lower.includes('search flights') ||
+    lower.includes('flight from') ||
+    lower.includes('flights from')
+  ) {
+    return 'search_flights';
+  }
+
+  if (
+    lower.includes('cheaper option') ||
+    lower.includes('cheaper alternative') ||
+    lower.includes('cheaper flight')
+  ) {
+    return 'cheaper_alternative';
+  }
+
+  return 'general';
 };
 
 const buildUserContext = async (userId) => {
@@ -62,11 +90,12 @@ const chatWithAssistant = async (req, res) => {
       return;
     }
 
+    const intent = detectIntent(message);
     const systemPrompt = buildSystemPrompt();
     const userContext = req.user ? await buildUserContext(req.user.id) : '';
     const flightsContext = await buildFlightsContext(message);
 
-    const systemParts = [systemPrompt];
+    const systemParts = [systemPrompt, `Current intent: ${intent}`];
 
     if (userContext) {
       systemParts.push(userContext);
@@ -86,7 +115,8 @@ const chatWithAssistant = async (req, res) => {
         const messages = [
           {
             role: 'system',
-            content: systemMessage,
+            content:
+              `${systemMessage}\n\nYou must respond with a short, friendly explanation that directly answers the user. If you see flight data, summarise the best options instead of just listing them. If you see recent bookings, reference them when relevant.`,
           },
           {
             role: 'user',

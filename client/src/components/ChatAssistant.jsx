@@ -87,13 +87,38 @@ const ChatAssistant = () => {
 
           <div className="flex-1 max-h-80 overflow-y-auto px-4 py-3 space-y-3 text-sm">
             {messages.length === 0 && (
-              <div className="text-slate-500 text-xs">
-                You can ask things like
-                {' '}
-                <span className="font-medium text-slate-700">
-                  cheap flights from Mumbai to Delhi this weekend
-                </span>
-                .
+              <div className="text-slate-500 text-xs space-y-1">
+                <div>
+                  You can ask things like
+                  {' '}
+                  <span className="font-medium text-slate-700">
+                    cheap flights from Mumbai to Delhi this weekend
+                  </span>
+                  .
+                </div>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setInput('Show my upcoming flights')}
+                    className="px-2 py-1 rounded-full text-[11px] bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  >
+                    Show my upcoming flights
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput('Find cheaper option for my current booking')}
+                    className="px-2 py-1 rounded-full text-[11px] bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  >
+                    Find cheaper option for my booking
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput('Find flights from Singapore to Sydney tomorrow under 700')}
+                    className="px-2 py-1 rounded-full text-[11px] bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  >
+                    Flights from Singapore to Sydney tomorrow
+                  </button>
+                </div>
               </div>
             )}
             {messages.map((m) => (
