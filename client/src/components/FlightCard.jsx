@@ -51,7 +51,12 @@ const FlightCard = ({ flight, onDelete }) => {
   useEffect(() => {
     let socket;
     if (showModal && !user?.isAdmin) {
-      const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
+      let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      // Remove trailing slash if present
+      baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      // Remove /api suffix if present
+      const socketUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+      
       console.log('Connecting to socket at:', socketUrl);
       
       socket = io(socketUrl, {

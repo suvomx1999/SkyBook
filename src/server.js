@@ -24,13 +24,25 @@ const getAllowedOrigins = () => {
 
 const io = new Server(server, {
   cors: {
-    origin: getAllowedOrigins(),
-    methods: ["GET", "POST"]
+    origin: [
+      ...getAllowedOrigins(),
+      /\.vercel\.app$/, // Allow all Vercel deployments
+      /\.onrender\.com$/ // Allow Render frontends if any
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
 app.use(cors({
-  origin: getAllowedOrigins(),
+  origin: (origin, callback) => {
+    const allowed = getAllowedOrigins();
+    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin) || /\.onrender\.com$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
