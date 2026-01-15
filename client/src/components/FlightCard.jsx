@@ -47,18 +47,28 @@ const FlightCard = ({ flight, onDelete }) => {
     }
   }, [showModal, flight, user]);
 
-  // Real-time seat updates
   useEffect(() => {
     let socket;
     if (showModal && !user?.isAdmin) {
-      let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-      // Remove trailing slash if present
-      baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      // Remove /api suffix if present
-      const socketUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
-      
+      let socketUrl = import.meta.env.VITE_SOCKET_URL || '';
+
+      if (!socketUrl && typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+        if (!isLocalhost) {
+          socketUrl = window.location.origin;
+        }
+      }
+
+      if (!socketUrl) {
+        let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+        socketUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+      }
+
       console.log('Connecting to socket at:', socketUrl);
-      
+
       socket = io(socketUrl, {
         transports: ['websocket', 'polling'],
         withCredentials: true
