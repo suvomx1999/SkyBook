@@ -109,6 +109,22 @@ const BookingDetails = () => {
     }
   };
 
+  const handleCancelPayment = async () => {
+    try {
+      if (flight?._id && seatNumbers && seatNumbers.length > 0) {
+        await API.post('/payments/release-locks', {
+          flightId: flight._id,
+          seatNumbers,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to release seat locks on cancel', err);
+    } finally {
+      setShowPaymentModal(false);
+      setClientSecret('');
+    }
+  };
+
   const appearance = {
     theme: 'stripe',
   };
@@ -282,7 +298,7 @@ const BookingDetails = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full relative">
             <button 
-              onClick={() => setShowPaymentModal(false)}
+              onClick={handleCancelPayment}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
             >
               <X className="h-6 w-6" />
@@ -300,7 +316,7 @@ const BookingDetails = () => {
               <CheckoutForm 
                 amount={finalTotal} 
                 onSuccess={handlePaymentSuccess} 
-                onCancel={() => setShowPaymentModal(false)}
+                onCancel={handleCancelPayment}
               />
             </Elements>
           </div>
