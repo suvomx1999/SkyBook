@@ -85,8 +85,8 @@ const releaseSeatLocks = async (req, res) => {
     }
 
     if (req.io) {
-      req.io.to(`flight:${flightId}`).emit('seatsLocked', {
-        seats: [],
+      req.io.to(`flight:${flightId}`).emit('seatsUnlocked', {
+        seats: seatNumbers,
       });
     }
 

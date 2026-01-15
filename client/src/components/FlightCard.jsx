@@ -82,6 +82,10 @@ const FlightCard = ({ flight, onDelete }) => {
         setSelectedSeats((prev) => prev.filter((s) => !seats.includes(s)));
       });
 
+      socket.on('seatsUnlocked', ({ seats }) => {
+        setOccupiedSeats((prev) => prev.filter((s) => !seats.includes(s)));
+      });
+
       socket.on('seatsBooked', ({ seats }) => {
         setOccupiedSeats((prev) => [...prev, ...seats]);
         setSelectedSeats((prev) => prev.filter((s) => !seats.includes(s)));
