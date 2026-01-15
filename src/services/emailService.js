@@ -9,17 +9,18 @@ const createTransporter = async () => {
     const port = process.env.EMAIL_PORT || 587;
     const isSecure = process.env.EMAIL_SECURE === 'true' || port == 465;
 
-    console.log(`Using Production Email (${host})`);
+    console.log(`Using Production Email (${host}:${port})`);
     
     return nodemailer.createTransport({
       host: host,
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      requireTLS: true,
+      port: port,
+      secure: isSecure, // true for 465, false for other ports
+      requireTLS: !isSecure, // If secure is true, requireTLS might be redundant or conflicting depending on provider, but usually false for 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      connectionTimeout: 10000, // 10 seconds
     });
   } else {
       console.log('Production email credentials not found, falling back to Ethereal');

@@ -6,7 +6,6 @@ import { Calendar, Clock, MapPin, User, Armchair, CreditCard, Trash2, AlertCircl
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -77,6 +76,27 @@ const Dashboard = () => {
       fetchAdminData();
     } catch (err) {
       alert('Failed to delete flight.');
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await API.delete(`/users/${id}`);
+      fetchAdminData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete user.');
+    }
+  };
+
+  const handleToggleAdmin = async (user) => {
+    const action = user.isAdmin ? 'remove admin rights from' : 'make admin';
+    if (!window.confirm(`Are you sure you want to ${action} ${user.name}?`)) return;
+    try {
+      await API.put(`/users/${user._id}/role`, { isAdmin: !user.isAdmin });
+      fetchAdminData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update user role.');
     }
   };
 
@@ -325,7 +345,8 @@ const Dashboard = () => {
                                     <th className="px-4 py-3 rounded-tl-lg">Name</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Role</th>
-                                    <th className="px-4 py-3 rounded-tr-lg">Joined</th>
+                                    <th className="px-4 py-3">Joined</th>
+                                    <th className="px-4 py-3 rounded-tr-lg">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -349,6 +370,24 @@ const Dashboard = () => {
                                         </td>
                                         <td className="px-4 py-3 text-slate-500">
                                             {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => handleToggleAdmin(u)}
+                                                    className={`p-1 rounded hover:bg-slate-200 ${u.isAdmin ? 'text-orange-600' : 'text-blue-600'}`}
+                                                    title={u.isAdmin ? "Remove Admin" : "Make Admin"}
+                                                >
+                                                    {u.isAdmin ? <User className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteUser(u._id)}
+                                                    className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 className="h-5 w-5" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
