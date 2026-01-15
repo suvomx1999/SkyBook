@@ -51,12 +51,15 @@ const Navbar = () => {
                   </Link>
                 )}
                 <div className="flex items-center space-x-4 pl-6 border-l border-slate-200">
-                  <div className="flex items-center space-x-2 text-slate-700">
+                  <Link 
+                    to="/profile"
+                    className="flex items-center space-x-2 text-slate-700 hover:text-blue-600 transition-colors"
+                  >
                     <div className="bg-blue-100 p-2 rounded-full">
                       <User className="h-4 w-4 text-blue-600" />
                     </div>
                     <span className="text-sm font-medium">{user.name}</span>
-                  </div>
+                  </Link>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center space-x-1 text-slate-500 hover:text-red-600 transition-colors text-sm font-medium"

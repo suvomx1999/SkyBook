@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import AddFlight from './pages/AddFlight';
 import BookingDetails from './pages/BookingDetails';
 import Invoice from './pages/Invoice';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/add-flight" element={<AddFlight />} />
             <Route path="/book/:flightId" element={<BookingDetails />} />
             <Route path="/invoice/:bookingId" element={<Invoice />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
           <ChatAssistant />
         </div>

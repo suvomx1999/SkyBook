@@ -63,11 +63,57 @@ const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Get user data
+// @desc    Get current user profile
 // @route   GET /api/users/me
 // @access  Private
 const getMe = async (req, res) => {
-  res.status(200).json(req.user);
+  res.status(200).json({
+    _id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+    isAdmin: req.user.isAdmin,
+  });
+};
+
+// @desc    Update current user profile
+// @route   PUT /api/users/me
+// @access  Private
+const updateMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (req.body.name) {
+      user.name = req.body.name;
+    }
+
+    if (req.body.email && req.body.email !== user.email) {
+      const existing = await User.findOne({ email: req.body.email });
+      if (existing && existing._id.toString() !== user._id.toString()) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      user.email = req.body.email;
+    }
+
+    if (req.body.password && req.body.password.length >= 6) {
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      isAdmin: updatedUser.isAdmin,
+      token: generateToken(updatedUser._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // @desc    Get all users (Admin)
@@ -135,6 +181,7 @@ module.exports = {
   registerUser,
   loginUser,
   getMe,
+  updateMe,
   getAllUsers,
   deleteUser,
   updateUserRole,
