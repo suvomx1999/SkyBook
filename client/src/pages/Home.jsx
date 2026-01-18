@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import API from '../services/api';
 import FlightCard from '../components/FlightCard';
 import { Search, MapPin, Calendar } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const Home = () => {
+  const [urlParams] = useSearchParams();
+  const highlightedFlightId = urlParams.get('flightId');
   const [searchParams, setSearchParams] = useState({
     source: '',
     destination: '',
@@ -205,7 +208,12 @@ const Home = () => {
 
         <div className="grid grid-cols-1 gap-6 mt-8 max-w-5xl mx-auto">
           {getSortedAndFilteredFlights().map((flight) => (
-            <FlightCard key={flight._id} flight={flight} onDelete={handleFlightDelete} />
+            <FlightCard
+              key={flight._id}
+              flight={flight}
+              onDelete={handleFlightDelete}
+              autoOpen={highlightedFlightId === flight._id}
+            />
           ))}
         </div>
       </div>

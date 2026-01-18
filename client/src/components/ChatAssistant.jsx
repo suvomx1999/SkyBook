@@ -1,10 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import API from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Send } from 'lucide-react';
 
 const ChatAssistant = () => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -31,10 +33,12 @@ const ChatAssistant = () => {
     try {
       const res = await API.post('/ai/chat', { message: userMessage.content });
       const reply = res.data?.reply || 'I could not generate a response.';
+      const action = res.data?.action || null;
       const assistantMessage = {
         id: `${userMessage.id}-assistant`,
         role: 'assistant',
         content: reply,
+        action,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -57,6 +61,47 @@ const ChatAssistant = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelBooking = async (bookingId, messageId) => {
+    try {
+      const res = await API.put(`/bookings/${bookingId}/cancel`);
+      const successMessage = {
+        id: `${messageId}-cancelled`,
+        role: 'assistant',
+        content: 'Your booking has been cancelled.',
+      };
+
+      setMessages((prev) => {
+        const updated = prev.map((m) =>
+          m.id === messageId ? { ...m, action: null } : m
+        );
+        return [...updated, successMessage];
+      });
+    } catch (error) {
+      const serverMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to cancel booking.';
+      const text =
+        typeof serverMessage === 'string'
+          ? serverMessage
+          : JSON.stringify(serverMessage);
+      const errorMessage = {
+        id: `${messageId}-cancel-error`,
+        role: 'assistant',
+        content: text,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    }
+  };
+
+  const handleBookFlight = (flightId, messageId) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, action: null } : m))
+    );
+    navigate(`/?flightId=${flightId}`);
   };
 
   if (!user) {
@@ -126,14 +171,34 @@ const ChatAssistant = () => {
                 key={m.id}
                 className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`rounded-xl px-3 py-2 max-w-[80%] ${
-                    m.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-800'
-                  }`}
-                >
-                  {m.content}
+                <div className="flex flex-col max-w-[80%]">
+                  <div
+                    className={`rounded-xl px-3 py-2 ${
+                      m.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  {m.role === 'assistant' && m.action?.type === 'suggest_cancel' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBooking(m.action.bookingId, m.id)}
+                      className="mt-1 self-start text-[11px] px-2 py-1 rounded-full bg-red-100 text-red-700 hover:bg-red-200"
+                    >
+                      Cancel this booking
+                    </button>
+                  )}
+                  {m.role === 'assistant' && m.action?.type === 'suggest_booking' && (
+                    <button
+                      type="button"
+                      onClick={() => handleBookFlight(m.action.flightId, m.id)}
+                      className="mt-1 self-start text-[11px] px-2 py-1 rounded-full bg-green-100 text-green-700 hover:bg-green-200"
+                    >
+                      Book this flight
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

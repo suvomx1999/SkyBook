@@ -2,7 +2,7 @@ const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
 const User = require('../models/User');
 const redisClient = require('../config/redis');
-const { sendBookingConfirmation } = require('../services/emailService');
+const { sendBookingConfirmation, sendBookingCancellation } = require('../services/emailService');
 
 // @desc    Get occupied seats for a flight
 // @route   GET /api/bookings/flight/:flightId/occupied
@@ -176,7 +176,6 @@ const cancelBooking = async (req, res) => {
       return;
     }
 
-    // Check ownership
     if (booking.user.toString() !== req.user.id && !req.user.isAdmin) {
       res.status(401).json({ message: 'Not authorized' });
       return;
@@ -187,15 +186,22 @@ const cancelBooking = async (req, res) => {
       return;
     }
 
-    // Update booking status
     booking.status = 'cancelled';
     await booking.save();
 
-    // Restore flight seats
     const flight = await Flight.findById(booking.flight);
     if (flight) {
       flight.availableSeats += booking.seats;
       await flight.save();
+    }
+
+    try {
+      const user = await User.findById(booking.user).select('name email');
+      if (user && flight) {
+        sendBookingCancellation(booking, user, flight);
+      }
+    } catch (emailError) {
+      console.error('Failed to initiate cancellation email sending:', emailError);
     }
 
     res.status(200).json({ message: 'Booking cancelled', booking });

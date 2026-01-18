@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { Plane, Clock, ArrowRight, User, Armchair, CheckCircle, AlertCircle, X, Trash2, Eye } from 'lucide-react';
 
-const FlightCard = ({ flight, onDelete }) => {
+const FlightCard = ({ flight, onDelete, autoOpen = false }) => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
@@ -48,23 +48,37 @@ const FlightCard = ({ flight, onDelete }) => {
   }, [showModal, flight, user]);
 
   useEffect(() => {
+    if (autoOpen && !showModal) {
+      setShowModal(true);
+    }
+  }, [autoOpen, showModal]);
+
+  useEffect(() => {
     let socket;
     if (showModal && !user?.isAdmin) {
       let socketUrl = import.meta.env.VITE_SOCKET_URL || '';
+
+      if (!socketUrl) {
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        if (apiBase) {
+          let baseUrl = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase;
+          socketUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+        }
+      }
 
       if (!socketUrl && typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
-        if (!isLocalhost) {
+        if (isLocalhost) {
+          socketUrl = 'http://localhost:5001';
+        } else {
           socketUrl = window.location.origin;
         }
       }
 
       if (!socketUrl) {
-        let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-        baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-        socketUrl = baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl;
+        socketUrl = 'http://localhost:5001';
       }
 
       console.log('Connecting to socket at:', socketUrl);

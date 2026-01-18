@@ -6,8 +6,10 @@ const createPaymentIntent = async (req, res) => {
   console.log('Received payment intent request:', { amount, currency, flightId, seatNumbers });
 
   try {
-    if (flightId && seatNumbers && seatNumbers.length > 0) {
-      const lockKeys = seatNumbers.map(seat => `lock:${flightId}:${seat}`);
+    const canUseRedis = redisClient && redisClient.isOpen;
+
+    if (flightId && seatNumbers && seatNumbers.length > 0 && canUseRedis) {
+      const lockKeys = seatNumbers.map((seat) => `lock:${flightId}:${seat}`);
       const ttl = 600;
 
       const script = `
@@ -30,14 +32,14 @@ const createPaymentIntent = async (req, res) => {
       try {
         const result = await redisClient.eval(script, {
           keys: lockKeys,
-          arguments: [userId || 'anonymous', String(ttl)]
+          arguments: [userId || 'anonymous', String(ttl)],
         });
 
         if (Array.isArray(result) && result[0] === 0) {
           const failedKey = result[1];
           const seatPart = typeof failedKey === 'string' ? failedKey.split(':').pop() : '?';
-          return res.status(400).json({ 
-            message: `Seat ${seatPart} is currently being booked by another user. Please try again in a few minutes.` 
+          return res.status(400).json({
+            message: `Seat ${seatPart} is currently being booked by another user. Please try again in a few minutes.`,
           });
         }
       } catch (err) {
@@ -47,9 +49,11 @@ const createPaymentIntent = async (req, res) => {
 
       if (req.io) {
         req.io.to(`flight:${flightId}`).emit('seatsLocked', {
-          seats: seatNumbers
+          seats: seatNumbers,
         });
       }
+    } else if (flightId && seatNumbers && seatNumbers.length > 0 && !canUseRedis) {
+      console.warn('Redis not connected; skipping seat lock for payment intent');
     }
 
     const paymentIntent = await stripe.paymentIntents.create({

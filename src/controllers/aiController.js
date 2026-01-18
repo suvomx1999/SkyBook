@@ -3,11 +3,114 @@ const Flight = require('../models/Flight');
 const Booking = require('../models/Booking');
 
 const buildSystemPrompt = () => {
-  return 'You are an AI travel assistant inside a flight booking app called SkyBook. You help users find flights and understand their bookings. Keep answers short, clear, and specific to flights and bookings. Always consider the user message, any recent bookings, and any matching flights when giving your answer. If there is not enough information, ask a short follow-up question instead of guessing.';
+  return 'You are an AI travel assistant inside a flight booking app called SkyBook. You help users find the best flights and understand their bookings. Keep answers short, clear, and specific to flights and bookings. Always consider the user message, any recent bookings, and any matching flights when giving your answer. When you see flight options, pick and explain the top 2-3 that best match the user request instead of listing everything. If there is not enough information, ask a short follow-up question instead of guessing.';
+};
+
+const cleanCityText = (text) => {
+  if (!text) return '';
+  const trimmed = text.trim().toLowerCase();
+  if (!trimmed) return '';
+
+  const dateKeywords = [
+    'on',
+    'today',
+    'tomorrow',
+    'tonight',
+    'yesterday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ];
+
+  const priceKeywords = [
+    'under',
+    'below',
+    'less',
+    'than',
+    'upto',
+    'up',
+    'around',
+    'about',
+  ];
+
+  const rawParts = trimmed.split(/\s+/);
+  const parts = [];
+
+  for (const token of rawParts) {
+    if (priceKeywords.includes(token) || /^\d/.test(token)) {
+      break;
+    }
+    parts.push(token);
+  }
+
+  while (parts.length && dateKeywords.includes(parts[parts.length - 1])) {
+    parts.pop();
+  }
+
+  return parts.join(' ');
+};
+
+const parseExplicitDate = (text) => {
+  if (!text || typeof text !== 'string') return null;
+
+  const lower = text.toLowerCase();
+
+  const monthMap = {
+    january: 0,
+    february: 1,
+    march: 2,
+    april: 3,
+    may: 4,
+    june: 5,
+    july: 6,
+    august: 7,
+    september: 8,
+    october: 9,
+    november: 10,
+    december: 11,
+  };
+
+  const dateRegex = /on\s+(\d{1,2})(st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})/;
+  const match = lower.match(dateRegex);
+
+  if (!match) {
+    return null;
+  }
+
+  const day = parseInt(match[1], 10);
+  const monthName = match[3];
+  const year = parseInt(match[4], 10);
+
+  if (Number.isNaN(day) || Number.isNaN(year)) {
+    return null;
+  }
+
+  if (monthMap[monthName] === undefined) {
+    return null;
+  }
+
+  const start = new Date(year, monthMap[monthName], day);
+
+  if (Number.isNaN(start.getTime())) {
+    return null;
+  }
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
 };
 
 const detectIntent = (message) => {
   const lower = message.toLowerCase();
+
+  if (lower.includes('cancel') && (lower.includes('booking') || lower.includes('flight'))) {
+    return 'cancel_booking';
+  }
 
   if (lower.includes('my bookings') || lower.includes('upcoming flights') || lower.includes('upcoming trips')) {
     return 'upcoming_bookings';
@@ -18,7 +121,10 @@ const detectIntent = (message) => {
     lower.includes('find flights') ||
     lower.includes('search flights') ||
     lower.includes('flight from') ||
-    lower.includes('flights from')
+    lower.includes('flights from') ||
+    lower.startsWith('book a flight') ||
+    lower.startsWith('book flight') ||
+    (lower.includes('book') && lower.includes('from') && lower.includes('to'))
   ) {
     return 'search_flights';
   }
@@ -60,25 +166,145 @@ const buildFlightsContext = async (message) => {
   const lower = message.toLowerCase();
   const query = {};
 
-  const cityRegex = /(?:from|from)\s+([a-zA-Z\s]+)\s+(?:to)\s+([a-zA-Z\s]+)/;
+  const cityRegex = /from\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)/;
   const match = lower.match(cityRegex);
 
   if (match) {
-    query.source = { $regex: match[1].trim(), $options: 'i' };
-    query.destination = { $regex: match[2].trim(), $options: 'i' };
+    const from = cleanCityText(match[1]);
+    const to = cleanCityText(match[2]);
+
+    if (from) {
+      query.source = { $regex: from, $options: 'i' };
+    }
+
+    if (to) {
+      query.destination = { $regex: to, $options: 'i' };
+    }
   }
 
-  const flights = await Flight.find(query).limit(5);
+  const priceRegex = /(under|below|less than)\s+(\d+)/;
+  const priceMatch = lower.match(priceRegex);
+  const filters = {};
+
+  if (priceMatch) {
+    filters.maxPrice = parseInt(priceMatch[2], 10);
+  }
+
+  const mongoQuery = { ...query };
+
+  if (filters.maxPrice) {
+    mongoQuery.price = { $lte: filters.maxPrice };
+  }
+
+  const explicitDateRange = parseExplicitDate(message);
+
+  if (explicitDateRange) {
+    mongoQuery.departureTime = {
+      $gte: explicitDateRange.start,
+      $lt: explicitDateRange.end,
+    };
+  } else {
+    const now = new Date();
+    mongoQuery.departureTime = { $gte: now };
+  }
+
+  let flightsQuery = Flight.find(mongoQuery);
+
+  if (filters.maxPrice) {
+    flightsQuery = flightsQuery.sort({ price: 1 });
+  } else {
+    flightsQuery = flightsQuery.sort({ departureTime: 1 });
+  }
+
+  let flights = await flightsQuery.limit(10);
+
+  if (!flights.length && Object.keys(query).length) {
+    const fallbackQuery = { ...query };
+
+    if (filters.maxPrice) {
+      fallbackQuery.price = { $lte: filters.maxPrice };
+    }
+
+    let fallbackFlightsQuery = Flight.find(fallbackQuery);
+
+    if (filters.maxPrice) {
+      fallbackFlightsQuery = fallbackFlightsQuery.sort({ price: 1 });
+    } else {
+      fallbackFlightsQuery = fallbackFlightsQuery.sort({ departureTime: 1 });
+    }
+
+    flights = await fallbackFlightsQuery.limit(10);
+  }
 
   if (!flights.length) {
-    return '';
+    return { text: '', filters, flights: [] };
   }
 
-  const lines = flights.map((f) => {
-    return `Flight ${f.flightNumber} (${f.airline}): ${f.source} -> ${f.destination}, departs ${f.departureTime.toISOString()}, price ${f.price}`;
+  const bestFlights = flights.slice(0, 5);
+
+  const lines = bestFlights.map((f, index) => {
+    return `${index + 1}. ${f.airline} ${f.flightNumber}: ${f.source} -> ${f.destination}, departs ${f.departureTime.toISOString()}, price ${f.price}`;
   });
 
-  return `Some available flights that might be relevant:\n${lines.join('\n')}`;
+  let header = 'Top flight options based on the user request:';
+
+  if (filters.maxPrice) {
+    header = `Top flight options under ${filters.maxPrice} based on the user request:`;
+  }
+
+  const text = `${header}\n${lines.join('\n')}`;
+
+  return { text, filters, flights: bestFlights };
+};
+
+const findBookingForCancel = async (userId, message) => {
+  const lower = message.toLowerCase();
+
+  if (!lower.includes('cancel')) {
+    return null;
+  }
+
+  const bookings = await Booking.find({ user: userId, status: 'booked' })
+    .populate('flight')
+    .sort({ createdAt: -1 });
+
+  if (!bookings.length) {
+    return null;
+  }
+
+  const cityRegex = /from\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)/;
+  const match = lower.match(cityRegex);
+
+  let candidates = bookings;
+
+  if (match) {
+    const from = cleanCityText(match[1]);
+    const to = cleanCityText(match[2]);
+
+    const filtered = bookings.filter((b) => {
+      if (!b.flight) return false;
+      const src = b.flight.source.toLowerCase();
+      const dest = b.flight.destination.toLowerCase();
+
+      const fromMatches = from ? src.includes(from) : true;
+      const toMatches = to ? dest.includes(to) : true;
+
+      return fromMatches && toMatches;
+    });
+
+    if (filtered.length) {
+      candidates = filtered;
+    }
+  }
+
+  const now = new Date();
+  const future = candidates.filter((b) => b.flight && b.flight.departureTime > now);
+
+  if (future.length) {
+    return future[0];
+  }
+
+  return candidates[0];
 };
 
 const chatWithAssistant = async (req, res) => {
@@ -91,9 +317,68 @@ const chatWithAssistant = async (req, res) => {
     }
 
     const intent = detectIntent(message);
+    const lower = message.toLowerCase();
     const systemPrompt = buildSystemPrompt();
     const userContext = req.user ? await buildUserContext(req.user.id) : '';
     const flightsContext = await buildFlightsContext(message);
+
+    let action = null;
+
+    if (req.user && intent === 'cancel_booking') {
+      const bookingToCancel = await findBookingForCancel(req.user.id, message);
+
+      if (bookingToCancel) {
+        const flight = bookingToCancel.flight;
+
+        action = {
+          type: 'suggest_cancel',
+          bookingId: bookingToCancel._id.toString(),
+          flightNumber: flight ? flight.flightNumber : undefined,
+          airline: flight ? flight.airline : undefined,
+          source: flight ? flight.source : undefined,
+          destination: flight ? flight.destination : undefined,
+          departureTime: flight ? flight.departureTime : undefined,
+          status: bookingToCancel.status,
+        };
+      }
+    } else if (
+      flightsContext &&
+      flightsContext.flights &&
+      flightsContext.flights.length &&
+      (lower.includes('book') ||
+        lower.includes('ticket') ||
+        lower.includes('reserve') ||
+        lower.includes('buy flight'))
+    ) {
+      const bestFlight = flightsContext.flights[0];
+
+      action = {
+        type: 'suggest_booking',
+        flightId: bestFlight._id.toString(),
+        flightNumber: bestFlight.flightNumber,
+        airline: bestFlight.airline,
+        source: bestFlight.source,
+        destination: bestFlight.destination,
+        departureTime: bestFlight.departureTime,
+        price: bestFlight.price,
+      };
+    }
+
+    if (intent === 'search_flights') {
+      if (flightsContext && flightsContext.flights && flightsContext.flights.length) {
+        res.status(200).json({
+          reply: flightsContext.text,
+          action,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        reply:
+          'I could not find any flights in SkyBook that match this route and budget. Try changing the cities or dates.',
+      });
+      return;
+    }
 
     const systemParts = [systemPrompt, `Current intent: ${intent}`];
 
@@ -101,8 +386,8 @@ const chatWithAssistant = async (req, res) => {
       systemParts.push(userContext);
     }
 
-    if (flightsContext) {
-      systemParts.push(flightsContext);
+    if (flightsContext && flightsContext.text) {
+      systemParts.push(`Flights context:\n${flightsContext.text}`);
     }
 
     const systemMessage = systemParts.join('\n\n');
@@ -145,6 +430,7 @@ const chatWithAssistant = async (req, res) => {
         if (choice && choice.message && choice.message.content) {
           res.status(200).json({
             reply: choice.message.content,
+            action,
           });
           return;
         }
@@ -158,8 +444,8 @@ const chatWithAssistant = async (req, res) => {
 
     let fallbackReply = '';
 
-    if (flightsContext) {
-      fallbackReply = `Based on your question, here are some flights that might help:\n\n${flightsContext}`;
+    if (flightsContext && flightsContext.text) {
+      fallbackReply = flightsContext.text;
     } else if (userContext) {
       fallbackReply = `${userContext}\n\nYou can ask things like:\n- "Is there a cheaper option for this route?"\n- "What are my upcoming flights?"`;
     } else {
@@ -169,6 +455,7 @@ const chatWithAssistant = async (req, res) => {
 
     res.status(200).json({
       reply: fallbackReply,
+      action,
     });
   } catch (error) {
     console.error('AI chat error:', error.response?.data || error.message || error);
