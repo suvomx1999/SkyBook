@@ -206,6 +206,13 @@ const FlightCard = ({ flight, onDelete, autoOpen = false }) => {
     setShowModal(false);
   };
 
+  const handleClose = () => {
+    setShowModal(false);
+    if (autoOpen) {
+      navigate(window.location.pathname);
+    }
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100 overflow-hidden group">
@@ -298,7 +305,7 @@ const FlightCard = ({ flight, onDelete, autoOpen = false }) => {
             {/* Modal Header */}
             <div className="bg-blue-600 p-6 text-white">
               <button 
-                onClick={() => setShowModal(false)}
+                onClick={handleClose}
                 className="absolute top-4 right-4 text-white/70 hover:text-white transition"
               >
                 <X className="h-6 w-6" />

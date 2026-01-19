@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import FlightCard from '../components/FlightCard';
 import { Search, MapPin, Calendar } from 'lucide-react';
@@ -18,6 +18,27 @@ const Home = () => {
   const [searched, setSearched] = useState(false);
   const [sortBy, setSortBy] = useState('price_asc');
   const [filterAirline, setFilterAirline] = useState('all');
+
+  useEffect(() => {
+    const fetchSingleFlight = async () => {
+      if (highlightedFlightId && flights.length === 0) {
+        setLoading(true);
+        try {
+          const res = await API.get(`/flights/${highlightedFlightId}`);
+          if (res.data) {
+             setFlights([res.data]);
+             setSearched(true);
+          }
+        } catch (err) {
+          console.error("Failed to fetch deep-linked flight", err);
+          setError("Failed to load the specified flight.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    fetchSingleFlight();
+  }, [highlightedFlightId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     setSearchParams({ ...searchParams, [e.target.name]: e.target.value });
